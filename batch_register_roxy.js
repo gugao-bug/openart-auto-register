@@ -5,26 +5,39 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-// ==================== 配置 ====================
+// ==================== 读取配置 ====================
+function loadConfig() {
+  const cfgPath = path.join(__dirname, 'config.json');
+  if (!fs.existsSync(cfgPath)) {
+    console.error('缺少 config.json，请先创建配置文件');
+    process.exit(1);
+  }
+  const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+  return raw;
+}
+
+const config = loadConfig();
+
 const ROXY = {
-  apiBase: 'http://127.0.0.1:50000',
-  token: '6f6ee232e92483045c19f12f63e05270',
-  workspaceId: 97119,
+  apiBase: config.roxy.apiBase || 'http://127.0.0.1:50000',
+  token: config.roxy.token,
+  workspaceId: config.roxy.workspaceId,
 };
 
 const MAIL = {
-  apiBase: 'https://api.gugaozhanxiong.xyz',
-  adminPassword: 'woaini315904815a',
-  domains: ['gugaomail.bond', 'gugumail.bond', 'gushimail.bond'],
+  apiBase: config.mail.apiBase,
+  adminPassword: config.mail.adminPassword,
+  domains: config.mail.domains,
 };
 
 const CFG = {
-  code: 'YT Affiliate',
-  affUrl: `https://openart.ai/credit/${encodeURIComponent('YT Affiliate')}`,
+  code: config.register.affiliateCode || 'YT Affiliate',
+  affUrl: `https://openart.ai/credit/${encodeURIComponent(config.register.affiliateCode || 'YT Affiliate')}`,
   signupUrl: 'https://openart.ai/signup',
-  count: 1,
-  concurrency: 1,
+  count: config.register.count || 1,
+  concurrency: config.register.concurrency || 1,
   waitForUserTurnstile: true,
+  turnstileTimeout: (config.register.turnstileTimeout || 120) * 1000,
 };
 
 // ==================== TLS & HTTP ====================
