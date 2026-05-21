@@ -92,7 +92,7 @@ async function roxyOpenBrowser(dirId) {
 async function roxyCloseBrowser(dirId) {
   return roxyPost('/browser/close', {
     workspaceId: ROXY.workspaceId,
-    dirIds: [dirId],
+    dirId: dirId,
   });
 }
 
@@ -340,7 +340,12 @@ async function registerOne(index, total, dirId) {
     console.error(`${tag} 失败: ${err.message}`);
     return { email: email || 'unknown', password: password || 'unknown', claimed: false, error: err.message, timestamp: new Date().toISOString() };
   } finally {
-    await browser.close().catch(() => {});
+    // 断开 CDP，让 Roxy 窗口可以被正常关闭
+    try {
+      await page.close().catch(() => {});
+      await browser.close().catch(() => {});
+    } catch {}
+    await sleep(2000);
   }
 }
 
@@ -385,13 +390,25 @@ async function main() {
 
     // 3. 关闭并删除本批次所有窗口
     console.log(`  清理 ${batchCount} 个窗口...`);
-    await Promise.all(
-      batchProfiles.map(async (dirId) => {
-        try { await roxyCloseBrowser(dirId); } catch (e) {}
-        await sleep(1000);
-        try { await roxyDeleteProfile(dirId); console.log(`    已删除 ${dirId.slice(-6)}`); } catch (e) { console.log(`    删除失败(${dirId.slice(-6)}): ${e.message}`); }
-      })
-    );
+    for (const dirId of batchProfiles) {
+      try {
+        await roxyCloseBrowser(dirId);
+        console.log(`    已关闭 ${dirId.slice(-6)}`);
+      } catch (e) {
+        console.log(`    关闭失败(${dirId.slice(-6)}): ${e.message}`);
+      }
+      await sleep(3000);
+      for (let retry = 0; retry < 3; retry++) {
+        try {
+          await roxyDeleteProfile(dirId);
+          console.log(`    已删除 ${dirId.slice(-6)}`);
+          break;
+        } catch (e) {
+          if (retry === 2) console.log(`    删除失败(${dirId.slice(-6)}): ${e.message}`);
+          else await sleep(2000);
+        }
+      }
+    }
 
     // 批次间等待
     if (batchEnd < needed) {
