@@ -348,54 +348,52 @@ async function registerOne(index, total, dirId) {
 async function main() {
   console.log('╔══════════════════════════════════════╗');
   console.log('║  OpenArt 批量注册 - Roxy 浏览器     ║');
-  console.log('║  码: YT Affiliate | Workspace: 97119║');
-  console.log(`║  数量: ${CFG.count}                          ║`);
+  console.log('║  码: YT Affiliate | Workspace: ' + String(ROXY.workspaceId).padEnd(26) + '║');
+  console.log(`║  数量: ${String(CFG.count).padEnd(26)}║`);
+  console.log(`║  并行: ${String(CFG.concurrency).padEnd(26)}║`);
   console.log('╚══════════════════════════════════════╝\n');
 
-  // 1. 获取现有的浏览器窗口列表
-  console.log('获取 Roxy 浏览器窗口列表...');
-  let profiles = await roxyListProfiles();
-  console.log(`找到 ${profiles.length} 个已有窗口`);
-
-  // 2. 为每个注册任务准备窗口（逐个创建，用完即删）
   const runId = Date.now();
   const needed = CFG.count;
-  while (profiles.length < needed) {
-    const idx = profiles.length + 1;
-    const name = `OpenArt_${runId}_${idx}`;
-    console.log(`创建新窗口: ${name}`);
-    const dirId = await roxyCreateProfile(name);
-    profiles = await roxyListProfiles();
-    console.log(`创建完成: ${dirId}, 当前共 ${profiles.length} 个窗口`);
-  }
-
-  // 3. 并行批量注册
+  const batchSize = CFG.concurrency;
   const results = [];
-  const batchSize = Math.min(CFG.concurrency, needed);
 
   for (let batchStart = 0; batchStart < needed; batchStart += batchSize) {
     const batchEnd = Math.min(batchStart + batchSize, needed);
-    const batchIndexes = Array.from({ length: batchEnd - batchStart }, (_, j) => batchStart + j);
-    const batchProfiles = batchIndexes.map(j => profiles[j]);
+    const batchCount = batchEnd - batchStart;
 
-    console.log(`\n=== 批次 ${Math.floor(batchStart / batchSize) + 1}: ${batchIndexes.length} 个并行 ===`);
+    console.log(`\n=== 批次 ${Math.floor(batchStart / batchSize) + 1}: 创建 ${batchCount} 个窗口 ===`);
 
-    // 并行执行
+    // 1. 为当前批次创建窗口（用完即删，不超额度）
+    const batchProfiles = [];
+    for (let j = 0; j < batchCount; j++) {
+      const name = `OpenArt_${runId}_${batchStart + j + 1}`;
+      const dirId = await roxyCreateProfile(name);
+      batchProfiles.push(dirId);
+      console.log(`  创建窗口 ${j + 1}/${batchCount}: ${dirId} (${name})`);
+    }
+
+    // 2. 并行注册
+    console.log(`  开始 ${batchCount} 个并行注册...`);
     const batchResults = await Promise.all(
-      batchIndexes.map(async (idx, bj) => {
-        const dirId = typeof batchProfiles[bj] === 'string' ? batchProfiles[bj] : (batchProfiles[bj].dirId || batchProfiles[bj].id);
-        const result = await registerOne(idx, needed, dirId);
-
-        // 关闭并删除
-        try { await roxyCloseBrowser(dirId); } catch (e) { console.log(`  关闭失败(${dirId.slice(-6)}): ${e.message}`); }
-        await sleep(2000);
-        try { await roxyDeleteProfile(dirId); console.log(`  已删除 ${dirId.slice(-6)}`); } catch (e) { console.log(`  删除失败(${dirId.slice(-6)}): ${e.message}`); }
-        return result;
+      batchProfiles.map((dirId, j) => {
+        const idx = batchStart + j;
+        return registerOne(idx, needed, dirId);
       })
     );
     results.push(...batchResults);
 
-    // 批次间随机等待
+    // 3. 关闭并删除本批次所有窗口
+    console.log(`  清理 ${batchCount} 个窗口...`);
+    await Promise.all(
+      batchProfiles.map(async (dirId) => {
+        try { await roxyCloseBrowser(dirId); } catch (e) {}
+        await sleep(1000);
+        try { await roxyDeleteProfile(dirId); console.log(`    已删除 ${dirId.slice(-6)}`); } catch (e) { console.log(`    删除失败(${dirId.slice(-6)}): ${e.message}`); }
+      })
+    );
+
+    // 批次间等待
     if (batchEnd < needed) {
       const wait = 5000 + Math.random() * 20000;
       console.log(`\n等待 ${(wait / 1000).toFixed(1)}s...\n`);
