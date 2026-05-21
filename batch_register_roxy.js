@@ -246,17 +246,22 @@ async function registerOne(index, total, dirId) {
     await btn.click();
 
     if (CFG.waitForUserTurnstile) {
-      console.log(`${tag} === 请在 Roxy 浏览器窗口中手动完成 Turnstile 验证 ===`);
-      console.log(`${tag} 等待 Turnstile 解决...`);
-      // 等待 cf-turnstile-response 获得值，表示用户解决了验证
-      const tsStart = Date.now();
-      while (Date.now() - tsStart < 120000) {
-        const tsVal = await page.$eval('input[name="cf-turnstile-response"]', el => el.value).catch(() => '');
-        if (tsVal && tsVal.length > 10) {
-          console.log(`${tag} Turnstile 已解决!`);
-          break;
+      // 检测 Turnstile 是否存在
+      const hasTurnstile = await page.$('input[name="cf-turnstile-response"]').catch(() => null);
+      if (hasTurnstile) {
+        console.log(`${tag} === 请在 Roxy 浏览器窗口中手动完成 Turnstile 验证 ===`);
+        console.log(`${tag} 等待 Turnstile 解决...`);
+        const tsStart = Date.now();
+        while (Date.now() - tsStart < CFG.turnstileTimeout) {
+          const tsVal = await page.$eval('input[name="cf-turnstile-response"]', el => el.value).catch(() => '');
+          if (tsVal && tsVal.length > 10) {
+            console.log(`${tag} Turnstile 已解决!`);
+            break;
+          }
+          await sleep(2000);
         }
-        await sleep(2000);
+      } else {
+        console.log(`${tag} 未检测到 Turnstile，跳过验证等待`);
       }
     }
 
