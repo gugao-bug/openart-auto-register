@@ -1,0 +1,4 @@
+node_modules/
+chrome_profiles_temp/
+accounts_*.json
+accounts_*.txt

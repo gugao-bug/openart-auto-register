@@ -1,0 +1,23 @@
+{
+  "mail": {
+    "apiBase": "https://api.gugaozhanxiong.xyz",
+    "adminPassword": "填写你的管理员密码",
+    "domains": [
+      "填写域名1.bond",
+      "填写域名2.bond",
+      "填写域名3.bond"
+    ]
+  },
+  "roxy": {
+    "apiBase": "http://127.0.0.1:50000",
+    "token": "填写你的Roxy_API_Token",
+    "workspaceId": 0
+  },
+  "register": {
+    "affiliateCode": "YT Affiliate",
+    "count": 1,
+    "concurrency": 3,
+    "headless": false,
+    "turnstileTimeout": 120
+  }
+}

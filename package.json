@@ -1,0 +1,12 @@
+{
+  "name": "openart-auto-register",
+  "version": "1.0.0",
+  "description": "OpenArt 批量注册工具 (Roxy 指纹浏览器 + Cloudflare 临时邮箱)",
+  "scripts": {
+    "start": "node batch_register_roxy.js"
+  },
+  "dependencies": {
+    "playwright": "^1.54.0",
+    "axios": "^1.7.0"
+  }
+}
